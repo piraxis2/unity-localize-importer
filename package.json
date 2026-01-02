@@ -1,0 +1,18 @@
+{
+  "name": "com.simple.localize",
+  "version": "1.0.0",
+  "displayName": "Simple Localize Wrapper",
+  "description": "Unity Localization wrapper package.",
+  "unity": "2021.3",
+  "keywords": [
+    "localization",
+    "wrapper"
+  ],
+  "author": {
+    "name": "Developer"
+  },
+  "dependencies": {
+    "com.unity.localization": "1.5.9",
+    "com.unity.addressables": "1.22.2"
+  }
+}

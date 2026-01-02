@@ -1,0 +1,23 @@
+# Unity ignore files
+/[Aa]ssets/[Pp]lugins/Android**
+/[Aa]ssets/[Pp]lugins/iOS**
+/[Aa]ssets/[Pp]lugins/WSA**
+/[Aa]ssets/[Pp]lugins/X64**
+/[Aa]ssets/[Pp]lugins/X86**
+/[Aa]ssets/[Pp]lugins/X86_64**
+
+# Package ignored files
+/Samples~
+/*.csproj
+/*.sln
+/*.user
+/*.unitypackage
+/bin
+/obj
+/Logs
+/Temp
+/Library
+/Build
+/UserSettings
+.DS_Store
+*.meta
