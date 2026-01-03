@@ -19,12 +19,30 @@ namespace Simple.Localize.Editor
         private void OnEnable()
         {
             component = (SimpleLocalizedText)target;
-            // 인스펙터 활성화 시 미리보기 갱신
-            if (component != null)
+            if (component == null) return;
+
+            // Localization 시스템이 초기화되었는지 확인
+            var op = LocalizationSettings.InitializationOperation;
+            if (op.IsDone)
             {
-                UpdatePreviewText(component.localizedString.TableReference, component.localizedString.TableEntryReference);
-                // 폰트는 프리뷰 갱신이 비동기라 복잡할 수 있지만 일단 시도
-                if(!component.localizedFont.IsEmpty) component.Refresh(); 
+                RefreshPreview();
+            }
+            else
+            {
+                // 초기화가 안 되었다면 완료될 때까지 기다림
+                op.Completed += (operation) => RefreshPreview();
+            }
+        }
+
+        private void RefreshPreview()
+        {
+            if (component == null) return;
+            UpdatePreviewText(component.localizedString.TableReference, component.localizedString.TableEntryReference);
+            
+            // 폰트는 런타임 로직(Refresh)을 통해 갱신 시도
+            if (!component.localizedFont.IsEmpty)
+            {
+                component.Refresh();
             }
         }
 
