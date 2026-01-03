@@ -2,15 +2,29 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.Localization;
 using UnityEngine.Localization.Settings;
+using System.Collections.Generic;
+using System;
 
 namespace Simple.Localize
 {
+    // LocalizedAsset<T>를 상속받아 폰트 에셋을 다루는 클래스 정의
+    [Serializable]
+    public class LocalizedFont : LocalizedAsset<TMP_FontAsset> {}
+
     [ExecuteAlways]
     [RequireComponent(typeof(TextMeshProUGUI))]
     public class SimpleLocalizedText : MonoBehaviour
     {
-        [Tooltip("Select Table and Key")]
+        [Header("Text Settings")]
+        [Tooltip("Select Table and Key for Text")]
         public LocalizedString localizedString = new LocalizedString();
+
+        [Tooltip("Arguments for Smart Strings (e.g. {0}, {name})")]
+        public List<string> smartArguments = new List<string>();
+
+        [Header("Font Settings (Optional)")]
+        [Tooltip("Select Table and Key for Font Asset")]
+        public LocalizedFont localizedFont = new LocalizedFont();
 
         private TextMeshProUGUI _textMeshPro;
 
@@ -23,16 +37,20 @@ namespace Simple.Localize
         {
             if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
 
-            // 이벤트 구독: 언어가 바뀌거나 키가 바뀌면 이 함수가 호출됨
+            // 1. 텍스트 이벤트 구독
             localizedString.StringChanged += UpdateText;
             
-            // 데이터 갱신 요청
-            localizedString.RefreshString(); 
+            // 2. 폰트 이벤트 구독
+            localizedFont.AssetChanged += UpdateFont;
+
+            // 3. 초기화 및 갱신
+            Refresh();
         }
 
         private void OnDisable()
         {
             localizedString.StringChanged -= UpdateText;
+            localizedFont.AssetChanged -= UpdateFont;
         }
 
         private void OnValidate()
@@ -42,43 +60,69 @@ namespace Simple.Localize
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                // 에디터에서 키를 바꿨을 때 즉시 반영 시도
                 UnityEditor.EditorApplication.delayCall += () => 
                 {
                     if(this == null) return;
-                    localizedString.RefreshString();
+                    Refresh();
                 };
             }
 #endif
         }
 
-        // 에디터 등 외부에서 강제 갱신 요청 시 사용
         public void UpdateText()
         {
+            Refresh();
+        }
+
+        public void Refresh()
+        {
+            // --- 텍스트 갱신 ---
+            if (smartArguments != null && smartArguments.Count > 0)
+            {
+                localizedString.Arguments = smartArguments.ToArray();
+            }
+            else
+            {
+                localizedString.Arguments = null;
+            }
+            
             localizedString.RefreshString();
 
+            // --- 폰트 갱신 ---
+            // 테이블이나 키가 설정되어 있을 때만 로드 시도
+            if (!localizedFont.IsEmpty)
+            {
+                // LoadAssetAsync()가 내부적으로 캐싱 및 로딩 처리
+                 var op = localizedFont.LoadAssetAsync();
+                 if (op.IsDone) UpdateFont(op.Result);
+            }
+
+            
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                var op = localizedString.GetLocalizedStringAsync();
-                if (op.IsDone)
-                {
-                    UpdateText(op.Result);
-                }
-                else
-                {
-                    op.Completed += (handle) => UpdateText(handle.Result);
-                }
+                // 에디터 비동기 처리 (텍스트)
+                var opText = localizedString.GetLocalizedStringAsync();
+                if (opText.IsDone) UpdateText(opText.Result);
+                else opText.Completed += (handle) => UpdateText(handle.Result);
             }
 #endif
         }
 
-        // StringChanged 이벤트 핸들러 (번역된 문자열이 넘어옴)
         private void UpdateText(string text)
         {
             if (_textMeshPro != null)
             {
                 _textMeshPro.text = text;
+                MarkDirtyInEditor();
+            }
+        }
+
+        private void UpdateFont(TMP_FontAsset font)
+        {
+            if (_textMeshPro != null && font != null)
+            {
+                _textMeshPro.font = font;
                 MarkDirtyInEditor();
             }
         }
@@ -92,11 +136,28 @@ namespace Simple.Localize
             }
 #endif
         }
-        
-        // 코드로 키 변경 시 사용
+
+        // 런타임에서 인자 변경
+        public void SetArgs(params string[] args)
+        {
+            if (smartArguments == null) smartArguments = new List<string>();
+            smartArguments.Clear();
+            smartArguments.AddRange(args);
+            Refresh();
+        }
+
+        // 런타임에서 텍스트 키 변경
         public void SetKey(string tableName, string key)
         {
             localizedString.SetReference(tableName, key);
+            Refresh();
+        }
+
+        // 런타임에서 폰트 키 변경
+        public void SetFontKey(string tableName, string key)
+        {
+            localizedFont.SetReference(tableName, key);
+            Refresh();
         }
     }
 }

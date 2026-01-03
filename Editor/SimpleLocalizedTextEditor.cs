@@ -23,6 +23,8 @@ namespace Simple.Localize.Editor
             if (component != null)
             {
                 UpdatePreviewText(component.localizedString.TableReference, component.localizedString.TableEntryReference);
+                // 폰트는 프리뷰 갱신이 비동기라 복잡할 수 있지만 일단 시도
+                if(!component.localizedFont.IsEmpty) component.Refresh(); 
             }
         }
 
@@ -32,11 +34,22 @@ namespace Simple.Localize.Editor
 
             serializedObject.Update();
 
+            // --- Text Settings ---
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Localization Settings", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Text Localization", EditorStyles.boldLabel);
+            
+            DrawReferenceSelection("Text Table", "Text Key", component.localizedString, true);
+            
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Smart String Arguments", EditorStyles.boldLabel);
+            SerializedProperty argsProp = serializedObject.FindProperty("smartArguments");
+            EditorGUILayout.PropertyField(argsProp, true);
 
-            DrawTableSelection();
-            DrawKeySelection();
+            // --- Font Settings ---
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Font Localization (Optional)", EditorStyles.boldLabel);
+            
+            DrawReferenceSelection("Font Table", "Font Key", component.localizedFont, false);
 
             EditorGUILayout.Space();
             
@@ -48,13 +61,21 @@ namespace Simple.Localize.Editor
             serializedObject.ApplyModifiedProperties();
         }
 
-        private void DrawTableSelection()
+        private void DrawReferenceSelection(string tableLabel, string keyLabel, LocalizedReference reference, bool isText)
         {
-            var collections = LocalizationEditorSettings.GetStringTableCollections().ToList();
+            // 1. Table Selection
+            var collections = LocalizationEditorSettings.GetStringTableCollections().Cast<LocalizationTableCollection>().ToList();
+            
+            // AssetTableCollection (폰트 등)도 가져오기 위해
+            if (!isText)
+            {
+                 collections = LocalizationEditorSettings.GetAssetTableCollections().Cast<LocalizationTableCollection>().ToList();
+            }
+
             var names = collections.Select(c => c.TableCollectionName).ToList();
             names.Insert(0, "None");
 
-            string currentTableName = component.localizedString.TableReference.TableCollectionName;
+            string currentTableName = reference.TableReference.TableCollectionName;
             int currentIndex = 0;
 
             if (!string.IsNullOrEmpty(currentTableName))
@@ -63,60 +84,64 @@ namespace Simple.Localize.Editor
                 if (currentIndex == -1) currentIndex = 0;
             }
 
-            int newIndex = EditorGUILayout.Popup("Table Collection", currentIndex, names.ToArray());
+            int newIndex = EditorGUILayout.Popup(tableLabel, currentIndex, names.ToArray());
             if (newIndex != currentIndex)
             {
-                Undo.RecordObject(component, "Change Table Collection");
+                Undo.RecordObject(component, $"Change {tableLabel}");
                 if (newIndex == 0)
                 {
-                    component.localizedString.TableReference = default;
+                    reference.TableReference = default;
                 }
                 else
                 {
-                    component.localizedString.TableReference = collections[newIndex - 1].TableCollectionName;
+                    reference.TableReference = collections[newIndex - 1].TableCollectionName;
                 }
-                UpdatePreviewText(component.localizedString.TableReference, component.localizedString.TableEntryReference);
+                
+                // 텍스트면 프리뷰 갱신
+                if(isText) UpdatePreviewText(reference.TableReference, reference.TableEntryReference);
             }
-        }
 
-        private void DrawKeySelection()
-        {
-            string currentTableName = component.localizedString.TableReference.TableCollectionName;
-            if (string.IsNullOrEmpty(currentTableName))
+            // 2. Key Selection
+            if (string.IsNullOrEmpty(reference.TableReference.TableCollectionName))
             {
-                EditorGUILayout.HelpBox("Please select a Table Collection first.", MessageType.Info);
+                // 테이블 미선택 시 키 선택 불가
                 return;
             }
 
-            var collection = LocalizationEditorSettings.GetStringTableCollections()
-                .FirstOrDefault(c => c.TableCollectionName == currentTableName);
-
+            var collection = collections.FirstOrDefault(c => c.TableCollectionName == reference.TableReference.TableCollectionName);
             if (collection == null) return;
 
             string currentKey = "";
-            long currentKeyId = component.localizedString.TableEntryReference.KeyId;
+            long currentKeyId = reference.TableEntryReference.KeyId;
             
             if (collection.SharedData != null)
             {
                 var entry = collection.SharedData.GetEntry(currentKeyId);
                 if (entry != null) currentKey = entry.Key;
-                else currentKey = component.localizedString.TableEntryReference.Key; 
+                else currentKey = reference.TableEntryReference.Key; 
             }
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel("Key");
+            EditorGUILayout.PrefixLabel(keyLabel);
             
             if (GUILayout.Button(string.IsNullOrEmpty(currentKey) ? "Select Key..." : currentKey, EditorStyles.popup))
             {
                 var dropdown = new LocalizationKeyDropdown(new AdvancedDropdownState(), collection);
                 dropdown.onKeySelected = (key, id) =>
                 {
-                    Undo.RecordObject(component, "Change Localization Key");
+                    Undo.RecordObject(component, $"Change {keyLabel}");
                     
-                    component.localizedString.SetReference(collection.TableCollectionName, key);
+                    reference.SetReference(collection.TableCollectionName, key);
                     
-                    // 동기식 프리뷰 갱신
-                    UpdatePreviewText(collection, id);
+                    if (isText)
+                    {
+                        UpdatePreviewText(collection as StringTableCollection, id);
+                    }
+                    else
+                    {
+                         // 폰트의 경우 즉시 갱신 시도
+                         component.Refresh();
+                    }
                     
                     EditorUtility.SetDirty(component);
                     Repaint();
@@ -132,7 +157,6 @@ namespace Simple.Localize.Editor
 
             Locale locale = LocalizationSettings.SelectedLocale;
             
-            // 로케일이 선택되지 않았다면 프로젝트의 기본 로케일이나 첫 번째 로케일을 찾습니다.
             if (locale == null)
             {
                 var settings = LocalizationEditorSettings.ActiveLocalizationSettings;
@@ -152,7 +176,6 @@ namespace Simple.Localize.Editor
             if (table != null)
             {
                 var entry = table.GetEntry(keyId);
-                // 항목이 있고 텍스트가 유효하다면 갱신
                 if (entry != null)
                 {
                     var tmpro = component.GetComponent<TextMeshProUGUI>();
@@ -178,10 +201,10 @@ namespace Simple.Localize.Editor
 
     public class LocalizationKeyDropdown : AdvancedDropdown
     {
-        private StringTableCollection collection;
+        private LocalizationTableCollection collection;
         public System.Action<string, long> onKeySelected;
 
-        public LocalizationKeyDropdown(AdvancedDropdownState state, StringTableCollection collection) : base(state)
+        public LocalizationKeyDropdown(AdvancedDropdownState state, LocalizationTableCollection collection) : base(state)
         {
             this.collection = collection;
         }
