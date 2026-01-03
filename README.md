@@ -66,3 +66,10 @@ public class MyUI : MonoBehaviour
 *   Unity 2021.3 이상
 *   Localization (com.unity.localization)
 *   TextMeshPro (com.unity.textmeshpro)
+
+---
+
+## 트러블슈팅 (Troubleshooting)
+*   **에디터 프리뷰가 보이지 않는 경우**: 
+    *   프로젝트를 처음 열거나 스크립트 컴파일 직후에는 Localization 설정이 완전히 로드되지 않아 미리보기가 작동하지 않을 수 있습니다.
+    *   이 경우 **Play Mode(재생)**를 한 번 실행하여 UI를 로드하면, 시스템이 초기화되어 이후부터는 에디터 상에서도 정상적으로 미리보기가 작동합니다.
