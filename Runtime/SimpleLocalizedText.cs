@@ -56,6 +56,21 @@ namespace Simple.Localize
         public void UpdateText()
         {
             localizedString.RefreshString();
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                var op = localizedString.GetLocalizedStringAsync();
+                if (op.IsDone)
+                {
+                    UpdateText(op.Result);
+                }
+                else
+                {
+                    op.Completed += (handle) => UpdateText(handle.Result);
+                }
+            }
+#endif
         }
 
         // StringChanged 이벤트 핸들러 (번역된 문자열이 넘어옴)
