@@ -5,6 +5,9 @@ using UnityEngine.Localization.Tables;
 using UnityEditor.Localization;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro; 
+using UnityEngine.Localization; 
+using UnityEngine.Localization.Settings; 
 
 namespace Simple.Localize.Editor
 {
@@ -35,8 +38,6 @@ namespace Simple.Localize.Editor
             if (GUI.changed)
             {
                 EditorUtility.SetDirty(component);
-                component.localizedString.RefreshString();
-                component.UpdateText();
             }
             
             serializedObject.ApplyModifiedProperties();
@@ -69,8 +70,7 @@ namespace Simple.Localize.Editor
                 {
                     component.localizedString.TableReference = collections[newIndex - 1].TableCollectionName;
                 }
-                component.localizedString.RefreshString();
-                component.UpdateText();
+                UpdatePreviewText(component.localizedString.TableReference, component.localizedString.TableEntryReference);
             }
         }
 
@@ -108,30 +108,60 @@ namespace Simple.Localize.Editor
                 {
                     Undo.RecordObject(component, "Change Localization Key");
                     
-                    // SetReference를 사용하여 명시적으로 갱신
                     component.localizedString.SetReference(collection.TableCollectionName, key);
                     
+                    // 동기식 프리뷰 갱신
+                    UpdatePreviewText(collection, id);
+                    
                     EditorUtility.SetDirty(component);
-                    
-                    // 타이밍 이슈 해결: 선택 처리가 완전히 끝난 후 갱신 시도
-                    EditorApplication.delayCall += () => 
-                    {
-                        if (component != null) 
-                        {
-                            component.UpdateText();
-                            // 갱신 후 다시 한 번 저장/리페인트 (텍스트 바뀐거 반영)
-                            EditorUtility.SetDirty(component);
-                            
-                            // SceneView 강제 갱신 (선택 사항)
-                            UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
-                        }
-                    };
-                    
                     Repaint();
                 };
                 dropdown.Show(GUILayoutUtility.GetLastRect());
             }
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void UpdatePreviewText(StringTableCollection collection, long keyId)
+        {
+            if (collection == null) return;
+
+            Locale locale = LocalizationSettings.SelectedLocale;
+            
+            if (locale == null)
+            {
+                var settings = LocalizationEditorSettings.ActiveLocalizationSettings;
+                if (settings != null && settings.GetStartupLocaleSelectors().Count > 0)
+                {
+                    locale = settings.GetStartupLocaleSelectors()[0].GetStartupLocale(null);
+                }
+            }
+            
+            if (locale == null) return;
+
+            var table = collection.GetTable(locale.Identifier) as StringTable;
+            if (table != null)
+            {
+                var entry = table.GetEntry(keyId);
+                if (entry != null)
+                {
+                    var tmpro = component.GetComponent<TextMeshProUGUI>();
+                    if (tmpro != null)
+                    {
+                        Undo.RecordObject(tmpro, "Update Preview Text");
+                        tmpro.text = entry.LocalizedValue;
+                        EditorUtility.SetDirty(tmpro);
+                    }
+                }
+            }
+        }
+        
+        private void UpdatePreviewText(TableReference tableRef, TableEntryReference entryRef)
+        {
+            var collection = LocalizationEditorSettings.GetStringTableCollection(tableRef);
+            if (collection != null)
+            {
+                UpdatePreviewText(collection, entryRef.KeyId);
+            }
         }
     }
 
