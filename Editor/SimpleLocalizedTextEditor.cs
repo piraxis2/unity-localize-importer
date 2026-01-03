@@ -108,15 +108,14 @@ namespace Simple.Localize.Editor
                 {
                     Undo.RecordObject(component, "Change Localization Key");
                     
-                    // 값 할당
-                    component.localizedString.TableEntryReference = id; 
+                    // SetReference를 사용하여 명시적으로 갱신
+                    component.localizedString.SetReference(collection.TableCollectionName, key);
                     
                     // 강제 갱신
-                    component.localizedString.RefreshString();
                     component.UpdateText();
                     
                     EditorUtility.SetDirty(component);
-                    Repaint(); // 인스펙터 갱신
+                    Repaint();
                 };
                 dropdown.Show(GUILayoutUtility.GetLastRect());
             }
