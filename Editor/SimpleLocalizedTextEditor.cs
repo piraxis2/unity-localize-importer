@@ -11,19 +11,17 @@ namespace Simple.Localize.Editor
     [CustomEditor(typeof(SimpleLocalizedText))]
     public class SimpleLocalizedTextEditor : UnityEditor.Editor
     {
-        private SerializedProperty localizedStringProp;
-        private SerializedProperty tableRefProp;
-        private SerializedProperty tableEntryRefProp;
+        private SimpleLocalizedText component;
 
         private void OnEnable()
         {
-            localizedStringProp = serializedObject.FindProperty("localizedString");
-            tableRefProp = localizedStringProp.FindPropertyRelative("m_TableReference");
-            tableEntryRefProp = localizedStringProp.FindPropertyRelative("m_TableEntryReference");
+            component = (SimpleLocalizedText)target;
         }
 
         public override void OnInspectorGUI()
         {
+            if (component == null) return;
+
             serializedObject.Update();
 
             EditorGUILayout.Space();
@@ -37,12 +35,16 @@ namespace Simple.Localize.Editor
 
             EditorGUILayout.Space();
             
-            // 변경 사항 적용
-            if (serializedObject.ApplyModifiedProperties())
+            // GUI 변경 시 처리
+            if (GUI.changed)
             {
-                // 값이 바뀌면 에디터 프리뷰 갱신 트리거
-                ((SimpleLocalizedText)target).SendMessage("OnValidate", SendMessageOptions.DontRequireReceiver);
+                EditorUtility.SetDirty(component);
+                component.SendMessage("OnValidate", SendMessageOptions.DontRequireReceiver);
             }
+            
+            // 기본 SerializedObject 적용은 필요 없지만(직접 수정하므로), 
+            // 다른 프로퍼티(예: m_Script)가 있을 수 있으므로 유지
+            serializedObject.ApplyModifiedProperties();
         }
 
         private void DrawTableSelection()
@@ -51,7 +53,7 @@ namespace Simple.Localize.Editor
             var names = collections.Select(c => c.TableCollectionName).ToList();
             names.Insert(0, "None");
 
-            string currentTableName = tableRefProp.FindPropertyRelative("m_TableCollectionName").stringValue;
+            string currentTableName = component.localizedString.TableReference.TableCollectionName;
             int currentIndex = 0;
 
             if (!string.IsNullOrEmpty(currentTableName))
@@ -63,23 +65,21 @@ namespace Simple.Localize.Editor
             int newIndex = EditorGUILayout.Popup("Table Collection", currentIndex, names.ToArray());
             if (newIndex != currentIndex)
             {
+                Undo.RecordObject(component, "Change Table Collection");
                 if (newIndex == 0)
                 {
-                    tableRefProp.FindPropertyRelative("m_TableCollectionName").stringValue = "";
-                    tableRefProp.FindPropertyRelative("m_TableCollectionNameGuid").stringValue = "";
+                    component.localizedString.TableReference = default;
                 }
                 else
                 {
-                    var selected = collections[newIndex - 1];
-                    tableRefProp.FindPropertyRelative("m_TableCollectionName").stringValue = selected.TableCollectionName;
-                    tableRefProp.FindPropertyRelative("m_TableCollectionNameGuid").stringValue = selected.SharedData.TableCollectionNameGuid.ToString();
+                    component.localizedString.TableReference = collections[newIndex - 1].TableCollectionName;
                 }
             }
         }
 
         private void DrawKeySelection()
         {
-            string currentTableName = tableRefProp.FindPropertyRelative("m_TableCollectionName").stringValue;
+            string currentTableName = component.localizedString.TableReference.TableCollectionName;
             if (string.IsNullOrEmpty(currentTableName))
             {
                 EditorGUILayout.HelpBox("Please select a Table Collection first.", MessageType.Info);
@@ -92,15 +92,14 @@ namespace Simple.Localize.Editor
             if (collection == null) return;
 
             string currentKey = "";
-            long currentKeyId = tableEntryRefProp.FindPropertyRelative("m_KeyId").longValue;
+            long currentKeyId = component.localizedString.TableEntryReference.KeyId;
             
             // ID로 키 이름 찾기
-            var entry = collection.SharedData.GetEntry(currentKeyId);
-            if (entry != null) currentKey = entry.Key;
-            else 
+            if (collection.SharedData != null)
             {
-                // ID로 못 찾으면 이름으로 시도
-                currentKey = tableEntryRefProp.FindPropertyRelative("m_KeyName").stringValue;
+                var entry = collection.SharedData.GetEntry(currentKeyId);
+                if (entry != null) currentKey = entry.Key;
+                else currentKey = component.localizedString.TableEntryReference.Key; 
             }
 
             EditorGUILayout.BeginHorizontal();
@@ -108,14 +107,15 @@ namespace Simple.Localize.Editor
             
             if (GUILayout.Button(string.IsNullOrEmpty(currentKey) ? "Select Key..." : currentKey, EditorStyles.popup))
             {
-                // 드롭다운 표시
                 var dropdown = new LocalizationKeyDropdown(new AdvancedDropdownState(), collection);
                 dropdown.onKeySelected = (key, id) =>
                 {
-                    tableEntryRefProp.FindPropertyRelative("m_KeyName").stringValue = key;
-                    tableEntryRefProp.FindPropertyRelative("m_KeyId").longValue = id;
-                    serializedObject.ApplyModifiedProperties();
-                    ((SimpleLocalizedText)target).SendMessage("OnValidate", SendMessageOptions.DontRequireReceiver);
+                    Undo.RecordObject(component, "Change Localization Key");
+                    // ID로 할당하는 것이 가장 정확함
+                    component.localizedString.TableEntryReference = id; 
+                    
+                    EditorUtility.SetDirty(component);
+                    component.SendMessage("OnValidate", SendMessageOptions.DontRequireReceiver);
                 };
                 dropdown.Show(GUILayoutUtility.GetLastRect());
             }
@@ -123,7 +123,6 @@ namespace Simple.Localize.Editor
         }
     }
 
-    // 고급 검색 드롭다운 (AdvancedDropdown)
     public class LocalizationKeyDropdown : AdvancedDropdown
     {
         private StringTableCollection collection;
@@ -137,15 +136,16 @@ namespace Simple.Localize.Editor
         protected override AdvancedDropdownItem BuildRoot()
         {
             var root = new AdvancedDropdownItem("Keys");
-
-            // 키 목록을 정렬해서 보여주면 더 찾기 쉽습니다.
-            var entries = collection.SharedData.Entries.OrderBy(e => e.Key);
-
-            foreach (var entry in entries)
+            
+            if (collection.SharedData != null)
             {
-                if (!string.IsNullOrEmpty(entry.Key))
+                var entries = collection.SharedData.Entries.OrderBy(e => e.Key);
+                foreach (var entry in entries)
                 {
-                    root.AddChild(new AdvancedDropdownItem(entry.Key) { id = (int)entry.Id });
+                    if (!string.IsNullOrEmpty(entry.Key))
+                    {
+                        root.AddChild(new AdvancedDropdownItem(entry.Key) { id = (int)entry.Id });
+                    }
                 }
             }
 
