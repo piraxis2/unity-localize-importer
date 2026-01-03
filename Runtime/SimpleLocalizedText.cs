@@ -2,20 +2,15 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.Localization;
 using UnityEngine.Localization.Settings;
-using UnityEngine.Localization.Tables;
 
 namespace Simple.Localize
 {
-    // 에디터에서도 미리보기가 가능하도록 설정
     [ExecuteAlways]
     [RequireComponent(typeof(TextMeshProUGUI))]
     public class SimpleLocalizedText : MonoBehaviour
     {
-        [Tooltip("엑셀(테이블)에 정의된 키 값")]
-        public string localizationKey;
-
-        [Tooltip("사용할 스트링 테이블 선택")]
-        public LocalizedStringTable stringTable = new LocalizedStringTable { TableReference = "Localize" };
+        [Tooltip("Select Table and Key")]
+        public LocalizedString localizedString = new LocalizedString();
 
         private TextMeshProUGUI _textMeshPro;
 
@@ -26,64 +21,44 @@ namespace Simple.Localize
 
         private void OnEnable()
         {
-            LocalizationSettings.SelectedLocaleChanged += OnLocaleChanged;
-            UpdateText();
+            if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
+
+            // 이벤트 구독: 언어가 바뀌거나 키가 바뀌면 이 함수가 호출됨
+            localizedString.StringChanged += UpdateText;
+            
+            // 데이터 갱신 요청
+            localizedString.RefreshString(); 
         }
 
         private void OnDisable()
         {
-            LocalizationSettings.SelectedLocaleChanged -= OnLocaleChanged;
+            localizedString.StringChanged -= UpdateText;
         }
-        
+
         private void OnValidate()
         {
             if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
-            
+
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                // 에디터 갱신 타이밍 문제 해결을 위해 delayCall 사용
-                UnityEditor.EditorApplication.delayCall += UpdateText;
+                // 에디터에서 키를 바꿨을 때 즉시 반영 시도
+                UnityEditor.EditorApplication.delayCall += () => 
+                {
+                    if(this == null) return;
+                    localizedString.RefreshString();
+                };
             }
 #endif
         }
 
-        private void OnLocaleChanged(Locale locale)
+        // StringChanged 이벤트 핸들러 (번역된 문자열이 넘어옴)
+        private void UpdateText(string text)
         {
-            UpdateText();
-        }
-
-        public void UpdateText()
-        {
-            if (string.IsNullOrEmpty(localizationKey)) return;
-            if (_textMeshPro == null) return;
-            // stringTable 유효성 체크
-            if (stringTable == null || stringTable.TableReference == default) return;
-
-            try
+            if (_textMeshPro != null)
             {
-                var op = LocalizationSettings.StringDatabase.GetLocalizedStringAsync(stringTable.TableReference, localizationKey);
-            
-                if (op.IsDone)
-                {
-                    _textMeshPro.text = op.Result;
-                    MarkDirtyInEditor();
-                }
-                else
-                {
-                    op.Completed += (handle) =>
-                    {
-                        if (_textMeshPro != null)
-                        {
-                            _textMeshPro.text = handle.Result;
-                            MarkDirtyInEditor();
-                        }
-                    };
-                }
-            }
-            catch (System.Exception)
-            {
-                // 에디터 초기화 이슈 무시
+                _textMeshPro.text = text;
+                MarkDirtyInEditor();
             }
         }
 
@@ -92,16 +67,15 @@ namespace Simple.Localize
 #if UNITY_EDITOR
             if (!Application.isPlaying && _textMeshPro != null)
             {
-                // 변경 사항을 저장하고 씬 뷰를 갱신
                 UnityEditor.EditorUtility.SetDirty(_textMeshPro);
             }
 #endif
         }
-
-        public void SetKey(string key)
+        
+        // 코드로 키 변경 시 사용
+        public void SetKey(string tableName, string key)
         {
-            localizationKey = key;
-            UpdateText();
+            localizedString.SetReference(tableName, key);
         }
     }
 }
