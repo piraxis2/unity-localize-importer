@@ -241,9 +241,13 @@ namespace Simple.Localize.Editor
                     var tmpro = component.GetComponent<TextMeshProUGUI>();
                     if (tmpro != null)
                     {
-                        Undo.RecordObject(tmpro, "Update Preview Text");
-                        tmpro.text = entry.LocalizedValue;
-                        EditorUtility.SetDirty(tmpro);
+                        // 텍스트가 실제로 변경되었을 때만 적용 및 Dirty 처리
+                        if (tmpro.text != entry.LocalizedValue)
+                        {
+                            Undo.RecordObject(tmpro, "Update Preview Text");
+                            tmpro.text = entry.LocalizedValue;
+                            EditorUtility.SetDirty(tmpro);
+                        }
                     }
                 }
             }

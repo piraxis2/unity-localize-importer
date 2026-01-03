@@ -113,8 +113,12 @@ namespace Simple.Localize
         {
             if (_textMeshPro != null)
             {
-                _textMeshPro.text = text;
-                MarkDirtyInEditor();
+                // 텍스트가 다를 때만 변경
+                if (_textMeshPro.text != text)
+                {
+                    _textMeshPro.text = text;
+                    MarkDirtyInEditor();
+                }
             }
         }
 
@@ -122,8 +126,12 @@ namespace Simple.Localize
         {
             if (_textMeshPro != null && font != null)
             {
-                _textMeshPro.font = font;
-                MarkDirtyInEditor();
+                // 폰트가 다를 때만 변경
+                if (_textMeshPro.font != font)
+                {
+                    _textMeshPro.font = font;
+                    MarkDirtyInEditor();
+                }
             }
         }
 
