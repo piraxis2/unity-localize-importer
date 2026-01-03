@@ -50,7 +50,7 @@ namespace Simple.Localize
         {
             if (string.IsNullOrEmpty(localizationKey)) return;
             if (_textMeshPro == null) return;
-            if (stringTable == null || stringTable.TableReference.ReferenceType == TableReferenceType.Empty) return;
+            if (stringTable == null || stringTable.TableReference == default) return;
 
             try
             {
