@@ -111,10 +111,22 @@ namespace Simple.Localize.Editor
                     // SetReference를 사용하여 명시적으로 갱신
                     component.localizedString.SetReference(collection.TableCollectionName, key);
                     
-                    // 강제 갱신
-                    component.UpdateText();
-                    
                     EditorUtility.SetDirty(component);
+                    
+                    // 타이밍 이슈 해결: 선택 처리가 완전히 끝난 후 갱신 시도
+                    EditorApplication.delayCall += () => 
+                    {
+                        if (component != null) 
+                        {
+                            component.UpdateText();
+                            // 갱신 후 다시 한 번 저장/리페인트 (텍스트 바뀐거 반영)
+                            EditorUtility.SetDirty(component);
+                            
+                            // SceneView 강제 갱신 (선택 사항)
+                            UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
+                        }
+                    };
+                    
                     Repaint();
                 };
                 dropdown.Show(GUILayoutUtility.GetLastRect());
