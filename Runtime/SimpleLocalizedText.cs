@@ -52,6 +52,12 @@ namespace Simple.Localize
 #endif
         }
 
+        // 에디터 등 외부에서 강제 갱신 요청 시 사용
+        public void UpdateText()
+        {
+            localizedString.RefreshString();
+        }
+
         // StringChanged 이벤트 핸들러 (번역된 문자열이 넘어옴)
         private void UpdateText(string text)
         {
