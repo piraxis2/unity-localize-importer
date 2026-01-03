@@ -21,16 +21,58 @@ namespace Simple.Localize.Editor
             component = (SimpleLocalizedText)target;
             if (component == null) return;
 
-            // Localization 시스템이 초기화되었는지 확인
-            var op = LocalizationSettings.InitializationOperation;
-            if (op.IsDone)
+            // 이미 초기화되어 있고 로케일도 선택되어 있다면 즉시 갱신
+            if (LocalizationSettings.InitializationOperation.IsDone && LocalizationSettings.SelectedLocale != null)
             {
                 RefreshPreview();
             }
             else
             {
-                // 초기화가 안 되었다면 완료될 때까지 기다림
-                op.Completed += (operation) => RefreshPreview();
+                // 준비될 때까지 매 프레임 체크
+                EditorApplication.update += CheckLocalizationReady;
+            }
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.update -= CheckLocalizationReady;
+        }
+
+        private void CheckLocalizationReady()
+        {
+            // 컴포넌트가 사라졌으면 중단
+            if (component == null)
+            {
+                EditorApplication.update -= CheckLocalizationReady;
+                return;
+            }
+
+            // 초기화 완료 여부 체크
+            var op = LocalizationSettings.InitializationOperation;
+            if (op.IsDone)
+            {
+                // 초기화는 끝났는데 선택된 로케일이 없다면?
+                if (LocalizationSettings.SelectedLocale == null)
+                {
+                    // 사용 가능한 로케일이 있는지 확인하고 강제로 첫 번째꺼 선택 시도
+                    var settings = LocalizationEditorSettings.ActiveLocalizationSettings;
+                    if (settings != null)
+                    {
+                        var available = settings.GetAvailableLocales();
+                        if (available != null && available.Locales.Count > 0)
+                        {
+                            // 로케일 강제 선택 (에디터 상에서만)
+                            LocalizationSettings.SelectedLocale = available.Locales[0];
+                        }
+                    }
+                }
+
+                // 이제 갱신 시도
+                if (LocalizationSettings.SelectedLocale != null)
+                {
+                    RefreshPreview();
+                    EditorApplication.update -= CheckLocalizationReady; // 성공했으니 체크 종료
+                }
             }
         }
 
