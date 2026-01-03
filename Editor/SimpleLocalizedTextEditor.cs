@@ -27,23 +27,18 @@ namespace Simple.Localize.Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Localization Settings", EditorStyles.boldLabel);
 
-            // 1. 테이블 선택
             DrawTableSelection();
-
-            // 2. 키 선택
             DrawKeySelection();
 
             EditorGUILayout.Space();
             
-            // GUI 변경 시 처리
             if (GUI.changed)
             {
                 EditorUtility.SetDirty(component);
-                component.SendMessage("OnValidate", SendMessageOptions.DontRequireReceiver);
+                component.localizedString.RefreshString();
+                component.UpdateText();
             }
             
-            // 기본 SerializedObject 적용은 필요 없지만(직접 수정하므로), 
-            // 다른 프로퍼티(예: m_Script)가 있을 수 있으므로 유지
             serializedObject.ApplyModifiedProperties();
         }
 
@@ -74,6 +69,8 @@ namespace Simple.Localize.Editor
                 {
                     component.localizedString.TableReference = collections[newIndex - 1].TableCollectionName;
                 }
+                component.localizedString.RefreshString();
+                component.UpdateText();
             }
         }
 
@@ -94,7 +91,6 @@ namespace Simple.Localize.Editor
             string currentKey = "";
             long currentKeyId = component.localizedString.TableEntryReference.KeyId;
             
-            // ID로 키 이름 찾기
             if (collection.SharedData != null)
             {
                 var entry = collection.SharedData.GetEntry(currentKeyId);
@@ -111,11 +107,16 @@ namespace Simple.Localize.Editor
                 dropdown.onKeySelected = (key, id) =>
                 {
                     Undo.RecordObject(component, "Change Localization Key");
-                    // ID로 할당하는 것이 가장 정확함
+                    
+                    // 값 할당
                     component.localizedString.TableEntryReference = id; 
                     
+                    // 강제 갱신
+                    component.localizedString.RefreshString();
+                    component.UpdateText();
+                    
                     EditorUtility.SetDirty(component);
-                    component.SendMessage("OnValidate", SendMessageOptions.DontRequireReceiver);
+                    Repaint(); // 인스펙터 갱신
                 };
                 dropdown.Show(GUILayoutUtility.GetLastRect());
             }
@@ -148,7 +149,6 @@ namespace Simple.Localize.Editor
                     }
                 }
             }
-
             return root;
         }
 
