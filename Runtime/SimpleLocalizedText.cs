@@ -38,7 +38,14 @@ namespace Simple.Localize
         private void OnValidate()
         {
             if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
-            if (!Application.isPlaying) UpdateText();
+            
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                // 에디터 갱신 타이밍 문제 해결을 위해 delayCall 사용
+                UnityEditor.EditorApplication.delayCall += UpdateText;
+            }
+#endif
         }
 
         private void OnLocaleChanged(Locale locale)
@@ -50,23 +57,27 @@ namespace Simple.Localize
         {
             if (string.IsNullOrEmpty(localizationKey)) return;
             if (_textMeshPro == null) return;
+            // stringTable 유효성 체크
             if (stringTable == null || stringTable.TableReference == default) return;
 
             try
             {
-                // stringTable.TableReference를 사용하여 요청
                 var op = LocalizationSettings.StringDatabase.GetLocalizedStringAsync(stringTable.TableReference, localizationKey);
             
                 if (op.IsDone)
                 {
                     _textMeshPro.text = op.Result;
+                    MarkDirtyInEditor();
                 }
                 else
                 {
                     op.Completed += (handle) =>
                     {
                         if (_textMeshPro != null)
+                        {
                             _textMeshPro.text = handle.Result;
+                            MarkDirtyInEditor();
+                        }
                     };
                 }
             }
@@ -74,6 +85,17 @@ namespace Simple.Localize
             {
                 // 에디터 초기화 이슈 무시
             }
+        }
+
+        private void MarkDirtyInEditor()
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying && _textMeshPro != null)
+            {
+                // 변경 사항을 저장하고 씬 뷰를 갱신
+                UnityEditor.EditorUtility.SetDirty(_textMeshPro);
+            }
+#endif
         }
 
         public void SetKey(string key)
