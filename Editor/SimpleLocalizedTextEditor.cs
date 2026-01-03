@@ -19,6 +19,11 @@ namespace Simple.Localize.Editor
         private void OnEnable()
         {
             component = (SimpleLocalizedText)target;
+            // 인스펙터 활성화 시 미리보기 갱신
+            if (component != null)
+            {
+                UpdatePreviewText(component.localizedString.TableReference, component.localizedString.TableEntryReference);
+            }
         }
 
         public override void OnInspectorGUI()
@@ -127,12 +132,17 @@ namespace Simple.Localize.Editor
 
             Locale locale = LocalizationSettings.SelectedLocale;
             
+            // 로케일이 선택되지 않았다면 프로젝트의 기본 로케일이나 첫 번째 로케일을 찾습니다.
             if (locale == null)
             {
                 var settings = LocalizationEditorSettings.ActiveLocalizationSettings;
-                if (settings != null && settings.GetStartupLocaleSelectors().Count > 0)
+                if (settings != null)
                 {
-                    locale = settings.GetStartupLocaleSelectors()[0].GetStartupLocale(null);
+                    var availableLocales = settings.GetAvailableLocales();
+                    if (availableLocales != null && availableLocales.Locales.Count > 0)
+                    {
+                        locale = availableLocales.Locales[0];
+                    }
                 }
             }
             
@@ -142,6 +152,7 @@ namespace Simple.Localize.Editor
             if (table != null)
             {
                 var entry = table.GetEntry(keyId);
+                // 항목이 있고 텍스트가 유효하다면 갱신
                 if (entry != null)
                 {
                     var tmpro = component.GetComponent<TextMeshProUGUI>();
