@@ -53,21 +53,7 @@ namespace Simple.Localize
             localizedFont.AssetChanged -= UpdateFont;
         }
 
-        private void OnValidate()
-        {
-            if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
 
-#if UNITY_EDITOR
-            if (!Application.isPlaying)
-            {
-                UnityEditor.EditorApplication.delayCall += () => 
-                {
-                    if(this == null) return;
-                    Refresh();
-                };
-            }
-#endif
-        }
 
         public void UpdateText()
         {
