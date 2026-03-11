@@ -71,8 +71,17 @@ namespace Simple.Localize
             {
                 localizedString.Arguments = null;
             }
-            
-            localizedString.RefreshString();
+
+            if (Application.isPlaying)
+            {
+                // 런타임에서 즉시 텍스트 갱신 (깜박임 방지)
+                // GetLocalizedString()은 동기적으로 작동하여 즉시 텍스트를 반환합니다.
+                UpdateText(localizedString.GetLocalizedString());
+            }
+            else
+            {
+                localizedString.RefreshString();
+            }
 
             // --- 폰트 갱신 ---
             // 테이블이나 키가 설정되어 있을 때만 로드 시도
@@ -80,7 +89,15 @@ namespace Simple.Localize
             {
                 // LoadAssetAsync()가 내부적으로 캐싱 및 로딩 처리
                  var op = localizedFont.LoadAssetAsync();
-                 if (op.IsDone) UpdateFont(op.Result);
+                 if (op.IsDone) 
+                 {
+                     UpdateFont(op.Result);
+                 }
+                 else if (Application.isPlaying)
+                 {
+                     // 런타임에서 즉시 폰트 갱신 (깜박임 방지)
+                     UpdateFont(op.WaitForCompletion());
+                 }
             }
 
             
