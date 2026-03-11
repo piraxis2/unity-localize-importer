@@ -9,7 +9,7 @@
     "wrapper"
   ],
   "author": {
-    "name": "Developer"
+    "name": "piraxis"
   },
   "dependencies": {
     "com.unity.localization": "1.5.9",
