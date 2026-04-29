@@ -63,24 +63,27 @@ namespace Simple.Localize
         public void Refresh()
         {
             // --- 텍스트 갱신 ---
-            if (smartArguments != null && smartArguments.Count > 0)
+            // 테이블이나 키가 설정되어 있을 때만 로컬라이즈 시도
+            if (!localizedString.IsEmpty)
             {
-                localizedString.Arguments = smartArguments.ToArray();
-            }
-            else
-            {
-                localizedString.Arguments = null;
-            }
+                if (smartArguments != null && smartArguments.Count > 0)
+                {
+                    localizedString.Arguments = smartArguments.ToArray();
+                }
+                else
+                {
+                    localizedString.Arguments = null;
+                }
 
-            if (Application.isPlaying)
-            {
-                // 런타임에서 즉시 텍스트 갱신 (깜박임 방지)
-                // GetLocalizedString()은 동기적으로 작동하여 즉시 텍스트를 반환합니다.
-                UpdateText(localizedString.GetLocalizedString());
-            }
-            else
-            {
-                localizedString.RefreshString();
+                if (Application.isPlaying)
+                {
+                    // 런타임에서 즉시 텍스트 갱신 (깜박임 방지)
+                    UpdateText(localizedString.GetLocalizedString());
+                }
+                else
+                {
+                    localizedString.RefreshString();
+                }
             }
 
             // --- 폰트 갱신 ---
