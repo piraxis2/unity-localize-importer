@@ -170,5 +170,23 @@ namespace Simple.Localize
             localizedFont.SetReference(tableName, key);
             Refresh();
         }
+
+        /// <summary>
+        /// 텍스트와 폰트 정보를 한 번에 설정하고 갱신합니다. (중복 Refresh 방지)
+        /// </summary>
+        public void SetFull(string textTable, string textKey, string fontTable, string fontKey, params string[] args)
+        {
+            localizedFont.SetReference(fontTable, fontKey);
+            localizedString.SetReference(textTable, textKey);
+
+            if (args != null && args.Length > 0)
+            {
+                if (smartArguments == null) smartArguments = new List<string>();
+                smartArguments.Clear();
+                smartArguments.AddRange(args);
+            }
+
+            Refresh();
+        }
     }
 }

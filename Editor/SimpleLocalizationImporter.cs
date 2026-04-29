@@ -25,6 +25,30 @@ namespace Simple.Localize.Editor
             GetWindow<SimpleLocalizationImporter>("Localize Importer");
         }
 
+        [MenuItem("Tools/Simple Localize/Settings")]
+        public static void OpenSettings()
+        {
+            var settings = SimpleLocalizeSettings.Instance;
+            if (settings != null && !string.IsNullOrEmpty(AssetDatabase.GetAssetPath(settings)))
+            {
+                Selection.activeObject = settings;
+            }
+            else
+            {
+                // Resources 폴더가 없으면 생성
+                if (!System.IO.Directory.Exists("Assets/Resources"))
+                {
+                    AssetDatabase.CreateFolder("Assets", "Resources");
+                }
+
+                var newSettings = CreateInstance<SimpleLocalizeSettings>();
+                AssetDatabase.CreateAsset(newSettings, "Assets/Resources/SimpleLocalizeSettings.asset");
+                AssetDatabase.SaveAssets();
+                Selection.activeObject = newSettings;
+                Debug.Log("[SimpleLocalize] 기본 설정 에셋을 Assets/Resources/SimpleLocalizeSettings.asset에 생성했습니다.");
+            }
+        }
+
         private void OnEnable()
         {
         }
