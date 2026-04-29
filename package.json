@@ -1,6 +1,6 @@
 {
   "name": "com.simple.localize",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "displayName": "Simple Localize Importer",
   "description": "Unity Localization wrapper package.",
   "unity": "2021.3",
