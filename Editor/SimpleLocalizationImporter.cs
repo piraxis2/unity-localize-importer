@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEditor.Localization;
 using UnityEngine;
 using UnityEngine.Localization.Tables;
+using Simple.Localize;
 
 namespace Simple.Localize.Editor
 {
