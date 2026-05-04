@@ -39,9 +39,9 @@ namespace Simple.Localize
 
             // 1. 텍스트 이벤트 구독
             localizedString.StringChanged += UpdateText;
-
+            
             // 2. 폰트 이벤트 구독
-            localizedFont.AssetChanged += OnFontAssetChanged;
+            localizedFont.AssetChanged += UpdateFont;
 
             // 3. 초기화 및 갱신
             Refresh();
@@ -50,7 +50,7 @@ namespace Simple.Localize
         private void OnDisable()
         {
             localizedString.StringChanged -= UpdateText;
-            localizedFont.AssetChanged -= OnFontAssetChanged;
+            localizedFont.AssetChanged -= UpdateFont;
         }
 
 
