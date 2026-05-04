@@ -37,21 +37,22 @@ namespace Simple.Localize
         {
             if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
 
-            // 1. 텍스트 이벤트 구독
-            localizedString.StringChanged += UpdateText;
-            
-            // 2. 폰트 이벤트 구독
-            localizedFont.AssetChanged += UpdateFont;
+            // 1. 텍스트/폰트 이벤트 구독 (둘 중 하나만 변해도 전체 갱신하여 폰트-텍스트 순서 보장)
+            localizedString.StringChanged += OnStringChanged;
+            localizedFont.AssetChanged += OnFontChanged;
 
-            // 3. 초기화 및 갱신
+            // 2. 초기화 및 갱신
             Refresh();
         }
 
         private void OnDisable()
         {
-            localizedString.StringChanged -= UpdateText;
-            localizedFont.AssetChanged -= UpdateFont;
+            localizedString.StringChanged -= OnStringChanged;
+            localizedFont.AssetChanged -= OnFontChanged;
         }
+
+        private void OnStringChanged(string value) => Refresh();
+        private void OnFontChanged(TMP_FontAsset asset) => Refresh();
 
 
 
