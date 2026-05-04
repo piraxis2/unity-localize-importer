@@ -62,6 +62,21 @@ namespace Simple.Localize
 
         public void Refresh()
         {
+            // --- 폰트 갱신 (텍스트보다 먼저 적용하여 깨짐 방지) ---
+            // 테이블이나 키가 설정되어 있을 때만 로드 시도
+            if (!localizedFont.IsEmpty)
+            {
+                 var op = localizedFont.LoadAssetAsync();
+                 if (op.IsDone)
+                 {
+                     UpdateFont(op.Result);
+                 }
+                 else if (Application.isPlaying)
+                 {
+                     UpdateFont(op.WaitForCompletion());
+                 }
+            }
+
             // --- 텍스트 갱신 ---
             // 테이블이나 키가 설정되어 있을 때만 로컬라이즈 시도
             if (!localizedString.IsEmpty)
@@ -77,7 +92,6 @@ namespace Simple.Localize
 
                 if (Application.isPlaying)
                 {
-                    // 런타임에서 즉시 텍스트 갱신 (깜박임 방지)
                     UpdateText(localizedString.GetLocalizedString());
                 }
                 else
@@ -86,24 +100,7 @@ namespace Simple.Localize
                 }
             }
 
-            // --- 폰트 갱신 ---
-            // 테이블이나 키가 설정되어 있을 때만 로드 시도
-            if (!localizedFont.IsEmpty)
-            {
-                // LoadAssetAsync()가 내부적으로 캐싱 및 로딩 처리
-                 var op = localizedFont.LoadAssetAsync();
-                 if (op.IsDone) 
-                 {
-                     UpdateFont(op.Result);
-                 }
-                 else if (Application.isPlaying)
-                 {
-                     // 런타임에서 즉시 폰트 갱신 (깜박임 방지)
-                     UpdateFont(op.WaitForCompletion());
-                 }
-            }
 
-            
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
