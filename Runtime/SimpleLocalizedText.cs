@@ -51,8 +51,8 @@ namespace Simple.Localize
             localizedFont.AssetChanged -= OnFontChanged;
         }
 
-        private void OnStringChanged(string value) => Refresh();
-        private void OnFontChanged(TMP_FontAsset asset) => Refresh();
+        private void OnStringChanged(string value) => UpdateText(value);
+        private void OnFontChanged(TMP_FontAsset asset) => UpdateFont(asset);
 
 
 
