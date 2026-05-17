@@ -85,7 +85,9 @@ namespace Simple.Localize
 
                 if (Application.isPlaying)
                 {
-                    UpdateText(localizedString.GetLocalizedString());
+                    var opText = localizedString.GetLocalizedStringAsync();
+                    if (opText.IsDone) UpdateText(opText.Result);
+                    else opText.Completed += handle => UpdateText(handle.Result);
                 }
                 else
                 {
@@ -118,7 +120,7 @@ namespace Simple.Localize
             }
             else if (Application.isPlaying)
             {
-                UpdateFont(op.WaitForCompletion());
+                op.Completed += handle => UpdateFont(handle.Result);
             }
         }
 
