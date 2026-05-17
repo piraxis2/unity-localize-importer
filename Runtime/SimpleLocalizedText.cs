@@ -56,7 +56,6 @@ namespace Simple.Localize
         private void OnStringChanged(string value)
         {
             var version = ++_refreshVersion;
-            ClearTextIfDifferent(value);
             ApplyFont(() =>
             {
                 if (version != _refreshVersion) return;
@@ -74,6 +73,8 @@ namespace Simple.Localize
 
         public void Refresh()
         {
+            if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
+
             var version = ++_refreshVersion;
 
             // --- 텍스트 갱신 ---
@@ -99,7 +100,6 @@ namespace Simple.Localize
                 if (opText.IsDone)
                 {
                     var text = opText.Result;
-                    ClearTextIfDifferent(text);
                     ApplyFont(() =>
                     {
                         if (version != _refreshVersion) return;
@@ -108,12 +108,10 @@ namespace Simple.Localize
                 }
                 else
                 {
-                    ClearText();
                     opText.Completed += handle =>
                     {
                         if (version != _refreshVersion) return;
                         var text = handle.Result;
-                        ClearTextIfDifferent(text);
                         ApplyFont(() =>
                         {
                             if (version != _refreshVersion) return;
@@ -176,21 +174,6 @@ namespace Simple.Localize
                 if (version != _refreshVersion) return;
                 onComplete?.Invoke();
             }
-        }
-
-        private void ClearText()
-        {
-            if (_textMeshPro == null || string.IsNullOrEmpty(_textMeshPro.text)) return;
-
-            _textMeshPro.text = string.Empty;
-            MarkDirtyInEditor();
-        }
-
-        private void ClearTextIfDifferent(string nextText)
-        {
-            if (_textMeshPro == null || _textMeshPro.text == nextText) return;
-
-            ClearText();
         }
 
         private void UpdateText(string text)
