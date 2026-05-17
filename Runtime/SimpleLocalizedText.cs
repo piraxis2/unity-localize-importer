@@ -27,6 +27,7 @@ namespace Simple.Localize
         public LocalizedFont localizedFont = new LocalizedFont();
 
         private TextMeshProUGUI _textMeshPro;
+        private int _refreshVersion;
 
         private void Awake()
         {
@@ -47,13 +48,20 @@ namespace Simple.Localize
 
         private void OnDisable()
         {
+            _refreshVersion++;
             localizedString.StringChanged -= OnStringChanged;
             localizedFont.AssetChanged -= OnFontChanged;
         }
 
         private void OnStringChanged(string value)
         {
-            ApplyFont(() => UpdateText(value));
+            var version = ++_refreshVersion;
+            ClearTextIfDifferent(value);
+            ApplyFont(() =>
+            {
+                if (version != _refreshVersion) return;
+                UpdateText(value);
+            });
         }
         private void OnFontChanged(TMP_FontAsset asset) => UpdateFont(asset);
 
@@ -66,11 +74,13 @@ namespace Simple.Localize
 
         public void Refresh()
         {
+            var version = ++_refreshVersion;
+
             // --- 텍스트 갱신 ---
             // 테이블이나 키가 설정되어 있을 때만 로컬라이즈 시도
             if (localizedString.IsEmpty)
             {
-                ApplyFont();
+                ApplyFont(null, version);
                 return;
             }
 
@@ -89,20 +99,32 @@ namespace Simple.Localize
                 if (opText.IsDone)
                 {
                     var text = opText.Result;
-                    ApplyFont(() => UpdateText(text));
+                    ClearTextIfDifferent(text);
+                    ApplyFont(() =>
+                    {
+                        if (version != _refreshVersion) return;
+                        UpdateText(text);
+                    }, version);
                 }
                 else
                 {
+                    ClearText();
                     opText.Completed += handle =>
                     {
+                        if (version != _refreshVersion) return;
                         var text = handle.Result;
-                        ApplyFont(() => UpdateText(text));
+                        ClearTextIfDifferent(text);
+                        ApplyFont(() =>
+                        {
+                            if (version != _refreshVersion) return;
+                            UpdateText(text);
+                        }, version);
                     };
                 }
             }
             else
             {
-                ApplyFont();
+                ApplyFont(null, version);
                 localizedString.RefreshString();
             }
 
@@ -120,9 +142,15 @@ namespace Simple.Localize
 
         private void ApplyFont(Action onComplete = null)
         {
+            ApplyFont(onComplete, _refreshVersion);
+        }
+
+        private void ApplyFont(Action onComplete, int version)
+        {
             // 테이블이나 키가 설정되어 있을 때만 로드 시도
             if (localizedFont.IsEmpty)
             {
+                if (version != _refreshVersion) return;
                 onComplete?.Invoke();
                 return;
             }
@@ -130,6 +158,7 @@ namespace Simple.Localize
             var op = localizedFont.LoadAssetAsync();
             if (op.IsDone)
             {
+                if (version != _refreshVersion) return;
                 UpdateFont(op.Result);
                 onComplete?.Invoke();
             }
@@ -137,14 +166,31 @@ namespace Simple.Localize
             {
                 op.Completed += handle =>
                 {
+                    if (version != _refreshVersion) return;
                     UpdateFont(handle.Result);
                     onComplete?.Invoke();
                 };
             }
             else
             {
+                if (version != _refreshVersion) return;
                 onComplete?.Invoke();
             }
+        }
+
+        private void ClearText()
+        {
+            if (_textMeshPro == null || string.IsNullOrEmpty(_textMeshPro.text)) return;
+
+            _textMeshPro.text = string.Empty;
+            MarkDirtyInEditor();
+        }
+
+        private void ClearTextIfDifferent(string nextText)
+        {
+            if (_textMeshPro == null || _textMeshPro.text == nextText) return;
+
+            ClearText();
         }
 
         private void UpdateText(string text)
