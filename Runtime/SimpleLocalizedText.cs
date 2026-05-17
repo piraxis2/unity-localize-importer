@@ -53,8 +53,7 @@ namespace Simple.Localize
 
         private void OnStringChanged(string value)
         {
-            ApplyFont();
-            UpdateText(value);
+            ApplyFont(() => UpdateText(value));
         }
         private void OnFontChanged(TMP_FontAsset asset) => UpdateFont(asset);
 
@@ -67,32 +66,33 @@ namespace Simple.Localize
 
         public void Refresh()
         {
-            // --- 폰트 갱신 (텍스트보다 먼저 적용하여 깨짐 방지) ---
-            ApplyFont();
-
             // --- 텍스트 갱신 ---
             // 테이블이나 키가 설정되어 있을 때만 로컬라이즈 시도
-            if (!localizedString.IsEmpty)
+            if (localizedString.IsEmpty)
             {
-                if (smartArguments != null && smartArguments.Count > 0)
-                {
-                    localizedString.Arguments = smartArguments.ToArray();
-                }
-                else
-                {
-                    localizedString.Arguments = null;
-                }
+                ApplyFont();
+                return;
+            }
 
-                if (Application.isPlaying)
-                {
-                    var opText = localizedString.GetLocalizedStringAsync();
-                    if (opText.IsDone) UpdateText(opText.Result);
-                    else opText.Completed += handle => UpdateText(handle.Result);
-                }
-                else
-                {
-                    localizedString.RefreshString();
-                }
+            if (smartArguments != null && smartArguments.Count > 0)
+            {
+                localizedString.Arguments = smartArguments.ToArray();
+            }
+            else
+            {
+                localizedString.Arguments = null;
+            }
+
+            if (Application.isPlaying)
+            {
+                var opText = localizedString.GetLocalizedStringAsync();
+                if (opText.IsDone) ApplyFont(() => UpdateText(opText.Result));
+                else opText.Completed += handle => ApplyFont(() => UpdateText(handle.Result));
+            }
+            else
+            {
+                ApplyFont();
+                localizedString.RefreshString();
             }
 
 
@@ -107,20 +107,32 @@ namespace Simple.Localize
 #endif
         }
 
-        private void ApplyFont()
+        private void ApplyFont(Action onComplete = null)
         {
             // 테이블이나 키가 설정되어 있을 때만 로드 시도
             if (localizedFont.IsEmpty)
+            {
+                onComplete?.Invoke();
                 return;
+            }
 
             var op = localizedFont.LoadAssetAsync();
             if (op.IsDone)
             {
                 UpdateFont(op.Result);
+                onComplete?.Invoke();
             }
             else if (Application.isPlaying)
             {
-                op.Completed += handle => UpdateFont(handle.Result);
+                op.Completed += handle =>
+                {
+                    UpdateFont(handle.Result);
+                    onComplete?.Invoke();
+                };
+            }
+            else
+            {
+                onComplete?.Invoke();
             }
         }
 
