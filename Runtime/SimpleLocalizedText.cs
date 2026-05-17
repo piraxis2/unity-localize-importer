@@ -37,7 +37,7 @@ namespace Simple.Localize
         {
             if (_textMeshPro == null) _textMeshPro = GetComponent<TextMeshProUGUI>();
 
-            // 1. 텍스트/폰트 이벤트 구독 (둘 중 하나만 변해도 전체 갱신하여 폰트-텍스트 순서 보장)
+            // 1. 텍스트/폰트 이벤트 구독 (텍스트 적용 직전에 폰트를 먼저 맞춰 깨짐 방지)
             localizedString.StringChanged += OnStringChanged;
             localizedFont.AssetChanged += OnFontChanged;
 
@@ -51,7 +51,11 @@ namespace Simple.Localize
             localizedFont.AssetChanged -= OnFontChanged;
         }
 
-        private void OnStringChanged(string value) => UpdateText(value);
+        private void OnStringChanged(string value)
+        {
+            ApplyFont();
+            UpdateText(value);
+        }
         private void OnFontChanged(TMP_FontAsset asset) => UpdateFont(asset);
 
 
@@ -64,19 +68,7 @@ namespace Simple.Localize
         public void Refresh()
         {
             // --- 폰트 갱신 (텍스트보다 먼저 적용하여 깨짐 방지) ---
-            // 테이블이나 키가 설정되어 있을 때만 로드 시도
-            if (!localizedFont.IsEmpty)
-            {
-                 var op = localizedFont.LoadAssetAsync();
-                 if (op.IsDone)
-                 {
-                     UpdateFont(op.Result);
-                 }
-                 else if (Application.isPlaying)
-                 {
-                     UpdateFont(op.WaitForCompletion());
-                 }
-            }
+            ApplyFont();
 
             // --- 텍스트 갱신 ---
             // 테이블이나 키가 설정되어 있을 때만 로컬라이즈 시도
@@ -111,6 +103,23 @@ namespace Simple.Localize
                 else opText.Completed += (handle) => UpdateText(handle.Result);
             }
 #endif
+        }
+
+        private void ApplyFont()
+        {
+            // 테이블이나 키가 설정되어 있을 때만 로드 시도
+            if (localizedFont.IsEmpty)
+                return;
+
+            var op = localizedFont.LoadAssetAsync();
+            if (op.IsDone)
+            {
+                UpdateFont(op.Result);
+            }
+            else if (Application.isPlaying)
+            {
+                UpdateFont(op.WaitForCompletion());
+            }
         }
 
         private void UpdateText(string text)
