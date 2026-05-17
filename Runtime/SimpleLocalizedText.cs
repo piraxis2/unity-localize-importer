@@ -86,8 +86,19 @@ namespace Simple.Localize
             if (Application.isPlaying)
             {
                 var opText = localizedString.GetLocalizedStringAsync();
-                if (opText.IsDone) ApplyFont(() => UpdateText(opText.Result));
-                else opText.Completed += handle => ApplyFont(() => UpdateText(handle.Result));
+                if (opText.IsDone)
+                {
+                    var text = opText.Result;
+                    ApplyFont(() => UpdateText(text));
+                }
+                else
+                {
+                    opText.Completed += handle =>
+                    {
+                        var text = handle.Result;
+                        ApplyFont(() => UpdateText(text));
+                    };
+                }
             }
             else
             {
